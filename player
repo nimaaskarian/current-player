@@ -97,9 +97,6 @@ Application Options:
 -q         Quiet mode"
 if [ ! -f $file ] || [[ $(echo -n "$(GET_CURRENT)" | wc -c) -eq 0 ]];then
   SET_FIRST
-  if [ $code -eq 1 ]; then
-    echo Offline
-  fi
 else
   [ -n "$1" ] || GET_CURRENT
   [ "$1" = "-n" ] && NEXT_PLAYER $opts
