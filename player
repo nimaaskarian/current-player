@@ -1,0 +1,107 @@
+#!/bin/bash
+
+file="/tmp/player"
+
+function WRITE_CURRENT {
+  echo "$1" > $file
+  if [[ ! $2 == "-q" ]]; then
+    echo "$1"
+  fi
+}
+
+GET_PLAYERS (){
+  playerctl -l -s
+}
+
+GET_CURRENT (){
+  not_found=1
+  current=$(cat $file)
+  for player in $(GET_PLAYERS)
+  do
+    if [[ $player == "$current" ]]; then 
+      echo "$current"
+      not_found=0
+    fi
+  done
+  if [ $not_found -eq 1 ]; then
+    SET_FIRST
+  fi
+}
+
+
+NEXT_PLAYER (){
+  current=$(GET_CURRENT)
+  next=0
+  last_line=$(GET_PLAYERS | wc -l)
+  current_line=0
+  GET_PLAYERS | while read -r player
+  do
+    current_line=$((current_line + 1))
+    if [[ next -eq 1 ]]; then
+      WRITE_CURRENT "$player" "$1"
+      break
+    fi
+    if [[ $current == "$player" ]]; then
+      if [[ $current_line -eq $last_line ]]; then
+        WRITE_CURRENT "$(GET_PLAYERS | head -n 1)" "$1"
+        break
+      fi
+      next=1
+    fi
+  done 
+}
+
+PREV_PLAYER (){
+  current=$(GET_CURRENT)
+  if [[ $current == $(GET_PLAYERS | head -n 1) ]]; then
+    WRITE_CURRENT "$(GET_PLAYERS | tail -n 1)" "$1"
+  else
+    prev=0
+    GET_PLAYERS | tac | while read -r player
+    do
+      if [[ prev -eq 1 ]]; then
+        WRITE_CURRENT "$player" "$1"
+        break
+      fi
+      if [[ $current == "$player" ]]; then
+        prev=1
+      fi
+    done
+  fi
+}
+
+SET_FIRST (){
+  player=$(GET_PLAYERS | head -n 1)
+  if [[ ! $(echo -n "$player" | wc -c) -eq 0 ]]; then
+    WRITE_CURRENT "$player"
+    code=0
+  fi
+  code=1
+}
+
+for arg in "$@"
+do
+  if [[ $arg == "-q" ]]; then 
+    opts="-q"
+  fi
+done
+
+[ "$1" = "--help" ] && echo "Current player for playerctl
+Usage: player.sh [OPTIONS...] (Passing no options give you current player)
+
+Help Options:
+--help     Shows help options
+Application Options:
+-n         Next player
+-p         Previous player
+-q         Quiet mode"
+if [ ! -f $file ] || [[ $(echo -n "$(GET_CURRENT)" | wc -c) -eq 0 ]];then
+  SET_FIRST
+  if [ $code -eq 1 ]; then
+    echo Offline
+  fi
+else
+  [ -n "$1" ] || GET_CURRENT
+  [ "$1" = "-n" ] && NEXT_PLAYER $opts
+  [ "$1" = "-p" ] && PREV_PLAYER $opts
+fi
